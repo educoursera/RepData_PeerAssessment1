@@ -1,25 +1,116 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "reproducible-research--course-project-1"
+author: "I Sh"
+date: "May 13, 2017"
+output: html_document
 ---
 
 
-## Loading and preprocessing the data
 
+
+## Loading loading data into data frame
+
+```{r echo=TRUE}
+if(!file.exists("getdata-projectfiles-UCI HAR Dataset.zip")) {
+        download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",destfile = "dataa.zip")
+        unzip("dataa.zip")
+}
+
+data <- read.csv("activity.csv")
+head(data)
+```
 
 
 ## What is mean total number of steps taken per day?
+###Sum daily steps, Histogram.
+```{r echo=TRUE} 
+dailystep <- by(data$steps, data$date, sum)
+hist(dailystep, main = paste("Daily Steps"), col="green", xlab="Number of Steps", breaks = 15)
 
-
+```
+###calculate mean and median
+```{r echo=TRUE}
+rmean <- mean(dailystep,na.rm = T)
+rmedian <- median(dailystep,na.rm = T)
+```
+The ``mean`` is `r rmean` and the ``median`` is `r rmedian`.
 
 ## What is the average daily activity pattern?
 
+###Calculate average steps for each interval for all days. 
+ 
+```{r echo=TRUE}
+avstepsdaily <- aggregate(steps ~ interval, data, mean)
+
+```
+###Plot the Average Number Steps per Day by Interval.
+```{r echo=TRUE}
+plot(avstepsdaily$interval,avstepsdaily$steps, type="l", xlab=" 5-minute interval", ylab="Num. of Steps",main="average daily Steps by Interval")
+```
+###Find interval with most average steps. 
+```{r echo=TRUE}
+max <- avstepsdaily[which.max(avstepsdaily$steps),]
+```
+
+ the interval contains  maximum number of steps is ``r max[,1]``.
+
+## Impute missing values.
+### Calculate total number of missing values in the dataset:
+```{r echo=TRUE}
+nas<-is.na(data$steps)
+nasum<-sum(nas)
+```
+total number of missing values is ``r nasum``
+
+###Compare imputed to original data. Missing values were imputed by inserting the average for each interval.  
+```{r echo=TRUE}
+
+data2<-data
+data2$steps[nas] <- avstepsdaily[avstepsdaily==as.character(data2$interval[nas]),][,2]
+imsum<-sum(is.na(data2))
+```
+number of missing data in imputed data is ``r imsum``
 
 
-## Imputing missing values
+###daily steps  and  Histogram. 
+```{r echo=TRUE}
+dailysteps_im <- aggregate(steps ~ date, data2, sum)
+hist(dailysteps_im$steps, main = paste("Daily Steps"), col="blue", xlab="Number of Steps",breaks = 15)
+hist(dailystep, main = paste("Daily Steps"), col="green", xlab="Number of Steps", breaks = 15,add=T)
+legend("topright", c("Imputed", "original"), col=c("blue", "green"), lwd=5)
+```
 
-
+###Calculate new mean and median for imputed data. 
+```{r echo=TRUE}
+imean <- mean(dailysteps_im$steps)
+imedian <- median(dailysteps_im$steps)
+avdiff <- imean - rmean
+meddiff <- imedian - rmedian
+tdiff <- sum(dailysteps_im$steps) - sum(dailystep,na.rm = T)
+```
+* The imputed data mean is `r imean`
+* The imputed data median is `r imedian`
+* The difference between the original mean and imputed mean is `r avdiff`
+* The difference between the original mean and imputed mean is `r meddiff`
+* The difference between total number of steps between imputed and original data is `r tdiff`. 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r echo=TRUE}
+weekends <- c("Saturday","Sunday")
+data2$daytpe = as.factor(ifelse(is.element(weekdays(as.Date(data2$date)),weekends),  "Weekend","Weekday"))
+
+steps_by_daytype <- aggregate(steps ~ interval + daytpe, data2, mean)
+
+library(lattice)
+
+xyplot(steps_by_daytype$steps ~ steps_by_daytype$interval|steps_by_daytype$daytpe, main="Average Steps per Day by Interval",xlab="Interval", ylab="Steps",layout=c(1,2), type="l")
+```
+
+###alternative(all by base plot function)
+```{r echo=TRUE}
+par(mfrow=c(2,1)) 
+plot(steps_by_daytype$interval[steps_by_daytype$daytpe=="Weekend" ],steps_by_daytype$steps[steps_by_daytype$daytpe=="Weekend" ], type="l", xlab=" 5-minute interval", ylab="Num. of Steps",main="Weekend")
+plot(steps_by_daytype$interval[steps_by_daytype$daytpe=="Weekday" ],steps_by_daytype$steps[steps_by_daytype$daytpe=="Weekday" ], type="l", xlab=" 5-minute interval", ylab="Num. of Steps",main="Weekday")
+```
+
+###``activity started earlier on weekdays but more intense on weekends``
